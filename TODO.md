@@ -33,14 +33,21 @@ Use the system `mvn` (3.9.9). Do not convert the file.
 - [x] `LocationGatewayTest`: real assertions — found case + not-found case
 - [x] `mvn clean test` green (3 tests)
 
-## Task 2 — Store legacy sync after commit (must have)
+## Task 2 — Store legacy sync after commit (must have) — DONE
 
-- [ ] `StoreCreatedEvent` / `StoreUpdatedEvent` records
-- [ ] `LegacyStoreEventsObserver` with `@Observes(during = TransactionPhase.AFTER_SUCCESS)`
-- [ ] `StoreResource`: fire events from the managed entity (not the request payload) in
-      `create` / `update` / `patch`; drop the direct gateway injection
-- [ ] `StoreEndpointTest` + `RecordingLegacyStoreManagerGateway` (`@Mock`):
-      notified after commit, silent on rollback
+- [x] `StoreCreatedEvent` / `StoreUpdatedEvent` records
+- [x] `LegacyStoreEventsObserver` with `@Observes(during = TransactionPhase.AFTER_SUCCESS)`
+- [x] `StoreResource`: fires events from the managed entity (not the request payload) in
+      `create` / `update` / `patch`; direct gateway injection removed
+- [x] `StoreEndpointTest` + `RecordingLegacyStoreManagerGateway` (`@Mock`):
+      notified after commit, carries the persisted id, silent on rollback
+- [x] `mvn clean test` green (6 tests)
+
+The rollback case is driven by the `unique` constraint on `Store.name`: posting an existing name
+fails at commit, and before this change the legacy system was still notified (id=4, never stored).
+
+Left untouched on purpose: `patch` guards on `entity.name != null` / `entity.quantityProductsInStock
+!= 0` rather than on the payload, which looks wrong but is outside this task's scope.
 
 ## Task 3 — Warehouse (must have)
 

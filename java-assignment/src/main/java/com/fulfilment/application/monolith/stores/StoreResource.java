@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.quarkus.panache.common.Sort;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.event.Event;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 import jakarta.ws.rs.Consumes;
@@ -27,9 +28,15 @@ import org.jboss.logging.Logger;
 @Consumes("application/json")
 public class StoreResource {
 
-  @Inject LegacyStoreManagerGateway legacyStoreManagerGateway;
-
   private static final Logger LOGGER = Logger.getLogger(StoreResource.class.getName());
+
+  private final Event<StoreCreatedEvent> storeCreated;
+  private final Event<StoreUpdatedEvent> storeUpdated;
+
+  StoreResource(Event<StoreCreatedEvent> storeCreated, Event<StoreUpdatedEvent> storeUpdated) {
+    this.storeCreated = storeCreated;
+    this.storeUpdated = storeUpdated;
+  }
 
   @GET
   public List<Store> get() {
@@ -55,7 +62,7 @@ public class StoreResource {
 
     store.persist();
 
-    legacyStoreManagerGateway.createStoreOnLegacySystem(store);
+    storeCreated.fire(StoreCreatedEvent.of(store));
 
     return Response.ok(store).status(201).build();
   }
@@ -77,7 +84,7 @@ public class StoreResource {
     entity.name = updatedStore.name;
     entity.quantityProductsInStock = updatedStore.quantityProductsInStock;
 
-    legacyStoreManagerGateway.updateStoreOnLegacySystem(updatedStore);
+    storeUpdated.fire(StoreUpdatedEvent.of(entity));
 
     return entity;
   }
@@ -104,7 +111,7 @@ public class StoreResource {
       entity.quantityProductsInStock = updatedStore.quantityProductsInStock;
     }
 
-    legacyStoreManagerGateway.updateStoreOnLegacySystem(updatedStore);
+    storeUpdated.fire(StoreUpdatedEvent.of(entity));
 
     return entity;
   }
