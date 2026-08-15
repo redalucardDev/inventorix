@@ -113,17 +113,25 @@ own maximum number of warehouses and maximum capacity.
 
 ```sh
 ./mvnw test                                          # all unit and @QuarkusTest tests
+./mvnw verify                                        # the above, plus the *IT tests on the packaged app
 ./mvnw test -Dtest=CreateWarehouseUseCaseTest        # a single test class
 ./mvnw test -Dtest=LocationGatewayTest#returnsEmptyWhenTheLocationDoesNotExist   # a single method
 ```
 
 Tests use **JUnit 5 + AssertJ**, with RestAssured for the endpoint tests and hand-written fakes
 (`InMemoryWarehouseStore`, `StubLocationResolver`) for the domain ports — no mocking framework.
-A JaCoCo coverage report is produced in `target/jacoco-report/index.html`.
+
+A JaCoCo coverage report is produced in `target/jacoco-report/index.html` by `./mvnw test`. It
+merges two sources: the `quarkus-jacoco` extension records the `@QuarkusTest` classes, which the
+plain agent cannot see through the Quarkus classloader, and `jacoco-maven-plugin` records the tests
+that run outside it. Generated REST code (`com.warehouse.api`) is excluded, and the data file is
+recreated on every run. The `*IT` tests run in a separate process that is not instrumented, so they
+do not contribute to the report.
 
 `@QuarkusTest` classes share a single database per run, so each test owns its own business unit
-codes. `*IT` classes (`@QuarkusIntegrationTest`) are bound to failsafe in the `native` profile
-only — a plain `./mvnw verify` does not execute them.
+codes. `*IT` classes (`@QuarkusIntegrationTest`) run through failsafe, bound in the main build, so
+`./mvnw verify` packages the application and exercises it black-box — in JVM mode as well as under
+the `native` profile.
 
 ## API overview
 

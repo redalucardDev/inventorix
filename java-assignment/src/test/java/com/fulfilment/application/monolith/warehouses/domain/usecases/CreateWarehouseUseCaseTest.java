@@ -133,6 +133,74 @@ class CreateWarehouseUseCaseTest {
     assertThat(warehouseStore.createdWarehouses()).containsExactly(warehouse);
   }
 
+  @Test
+  void rejectsCreationWhenTheCapacityIsNegative() {
+    // Given a warehouse declaring a negative capacity
+    InMemoryWarehouseStore warehouseStore = new InMemoryWarehouseStore();
+    Warehouse negativeCapacity = warehouse(NEW_CODE, LOCATION, -1, 0);
+
+    // When / Then
+    assertThatExceptionOfType(WarehouseValidationException.class)
+        .isThrownBy(() -> createUseCaseOn(warehouseStore).create(negativeCapacity))
+        .withMessageContaining("negative");
+    assertThat(warehouseStore.createdWarehouses()).isEmpty();
+  }
+
+  @Test
+  void rejectsCreationWhenTheStockIsNegative() {
+    // Given a warehouse declaring a negative stock
+    InMemoryWarehouseStore warehouseStore = new InMemoryWarehouseStore();
+    Warehouse negativeStock = warehouse(NEW_CODE, LOCATION, 10, -1);
+
+    // When / Then
+    assertThatExceptionOfType(WarehouseValidationException.class)
+        .isThrownBy(() -> createUseCaseOn(warehouseStore).create(negativeStock))
+        .withMessageContaining("negative");
+    assertThat(warehouseStore.createdWarehouses()).isEmpty();
+  }
+
+  @Test
+  void rejectsCreationWhenTheBusinessUnitCodeIsBlank() {
+    // Given a business unit code made of spaces
+    InMemoryWarehouseStore warehouseStore = new InMemoryWarehouseStore();
+    Warehouse unnamed = warehouse("   ", LOCATION, 10, 1);
+
+    // When / Then
+    assertThatExceptionOfType(WarehouseValidationException.class)
+        .isThrownBy(() -> createUseCaseOn(warehouseStore).create(unnamed))
+        .withMessageContaining("mandatory");
+    assertThat(warehouseStore.createdWarehouses()).isEmpty();
+  }
+
+  @Test
+  void rejectsCreationWhenTheLocationIsMissing() {
+    // Given a warehouse without a location
+    InMemoryWarehouseStore warehouseStore = new InMemoryWarehouseStore();
+    Warehouse nowhere = warehouse(NEW_CODE, null, 10, 1);
+
+    // When / Then
+    assertThatExceptionOfType(WarehouseValidationException.class)
+        .isThrownBy(() -> createUseCaseOn(warehouseStore).create(nowhere))
+        .withMessageContaining("mandatory");
+    assertThat(warehouseStore.createdWarehouses()).isEmpty();
+  }
+
+  @Test
+  void rejectsCreationWhenOnlyTheStockIsMissing() {
+    // Given a payload carrying a capacity but no stock
+    InMemoryWarehouseStore warehouseStore = new InMemoryWarehouseStore();
+    var withoutStock = new Warehouse();
+    withoutStock.businessUnitCode = NEW_CODE;
+    withoutStock.location = LOCATION;
+    withoutStock.capacity = 10;
+
+    // When / Then
+    assertThatExceptionOfType(WarehouseValidationException.class)
+        .isThrownBy(() -> createUseCaseOn(warehouseStore).create(withoutStock))
+        .withMessageContaining("mandatory");
+    assertThat(warehouseStore.createdWarehouses()).isEmpty();
+  }
+
   private CreateWarehouseUseCase createUseCaseOn(InMemoryWarehouseStore warehouseStore) {
     return new CreateWarehouseUseCase(
         warehouseStore, new WarehouseValidations(warehouseStore, locationResolver));

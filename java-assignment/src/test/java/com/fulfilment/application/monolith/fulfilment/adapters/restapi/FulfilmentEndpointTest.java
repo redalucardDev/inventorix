@@ -2,6 +2,7 @@ package com.fulfilment.application.monolith.fulfilment.adapters.restapi;
 
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.CoreMatchers.equalTo;
+import static org.hamcrest.CoreMatchers.hasItem;
 import static org.hamcrest.CoreMatchers.notNullValue;
 
 import io.quarkus.test.junit.QuarkusTest;
@@ -209,6 +210,53 @@ class FulfilmentEndpointTest {
         .then()
         .statusCode(200)
         .body("size()", equalTo(0));
+  }
+
+  @Test
+  void listsEveryAssociationWhenNoFilterIsGiven() {
+    // Given an association of its own
+    final long productId = createProduct("FUL-T11-P1");
+    final long storeId = createStore("FUL-T11-S1");
+    final long id = createdId(PATH, fulfilmentBody(productId, storeId, SEEDED_WAREHOUSE_C));
+
+    // When the whole register is asked for
+    // Then it is part of the answer
+    given().when().get(PATH).then().statusCode(200).body("id", hasItem((int) id));
+  }
+
+  @Test
+  void combinesTheProductAndTheStoreFilters() {
+    // Given one product fulfilled by the same warehouse in two stores
+    final long productId = createProduct("FUL-T12-P1");
+    final long storeId = createStore("FUL-T12-S1");
+    final long otherStoreId = createStore("FUL-T12-S2");
+    associate(productId, storeId, SEEDED_WAREHOUSE_C, 201);
+    associate(productId, otherStoreId, SEEDED_WAREHOUSE_C, 201);
+
+    // When both filters are combined
+    // Then only the association of that store is returned
+    given()
+        .queryParam("productId", productId)
+        .queryParam("storeId", storeId)
+        .when()
+        .get(PATH)
+        .then()
+        .statusCode(200)
+        .body("size()", equalTo(1))
+        .body("[0].storeId", equalTo((int) storeId));
+  }
+
+  @Test
+  void rejectsAPayloadThatCarriesNoAssociationAtAll() {
+    // Given a body that deserialises to nothing
+    // When / Then
+    given()
+        .contentType(ContentType.JSON)
+        .body("null")
+        .when()
+        .post(PATH)
+        .then()
+        .statusCode(400);
   }
 
   private static void associate(

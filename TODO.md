@@ -67,19 +67,26 @@ Left untouched on purpose: `patch` guards on `entity.name != null` / `entity.qua
 - [x] `WarehouseResourceImpl`: constructor-injected operation ports, all 4 endpoints, `id` in responses
 - [x] `WarehouseCreatedStatusFilter`: restores the 201 the generated interface cannot declare
 - [x] Use-case unit tests with hand-written fakes (`InMemoryWarehouseStore`, `StubLocationResolver`):
-      8 create + 6 replace + 3 archive, every validation branch covered
+      13 create + 8 replace + 3 archive, every validation branch covered
 - [x] `WarehouseEndpointTest` (`@QuarkusTest` + RestAssured), 10 tests including the archived unit
-      disappearing from the listing and from the lookups
+      disappearing from the listing and from the lookups; listing the seeded warehouses is left to
+      `WarehouseEndpointIT` rather than asserted twice
 - [x] `WarehouseEndpointIT`: uncommented and restored
+- [x] failsafe moved out of the `native` profile into the main build, so `mvn verify` packages the
+      application and runs the two `*IT` tests black-box in JVM mode
+- [x] JaCoCo wired in: `quarkus-jacoco` for the `@QuarkusTest` classes + `jacoco-maven-plugin` for
+      the tests outside the Quarkus classloader, one report in `target/jacoco-report`
 
 Design decisions written up in `java-assignment/docs/task-3-warehouse.md`.
 
 Left open (deliberate, see the doc's *Limits* section):
 
-- failsafe is still bound to the `native` profile only, so the two `*IT` tests do not run under
-  `mvn verify`; the same behaviour is covered by `WarehouseEndpointTest`, which does run
 - the two `WarehouseEndpointIT` tests share one application instance and JUnit does not guarantee
-  their order — `testSimpleListWarehouses` fails if it runs after the archiving test
+  their order — `testSimpleListWarehouses` would fail if it ran after the archiving test (the
+  current JUnit ordering happens to run it first)
+- the `*IT` process runs without the JaCoCo agent, so it adds nothing to the coverage report;
+  instrumenting it needs `quarkus.test.arg-line` plus a second report pass over the build-time
+  transformed classes, and the two ITs only re-check behaviour already measured in JVM mode
 
 ## Bonus — fulfilment associations (nice to have) — DONE
 
@@ -88,9 +95,10 @@ Left open (deliberate, see the doc's *Limits* section):
 - [x] `CreateFulfilmentUseCase`: ≤2 warehouses per product+store, ≤3 warehouses per store,
       ≤5 product types per warehouse — all counting *distinct* participants
 - [x] `FulfilmentResource`: POST (201/400), GET with `productId`/`storeId` filters, DELETE (204/404)
-- [x] `FulfilmentEndpointTest`: 10 tests — three limits, duplicate, distinct-counting case,
-      unknown references, archived warehouse refused, delete, cascade on product deletion
-- [x] `CreateFulfilmentUseCaseTest` (11) + `RemoveFulfilmentUseCaseTest` (2) on hand-written fakes —
+- [x] `FulfilmentEndpointTest`: 13 tests — three limits, duplicate, distinct-counting case,
+      unknown references, archived warehouse refused, delete, cascade on product deletion,
+      the unfiltered listing, both filters combined and an empty payload
+- [x] `CreateFulfilmentUseCaseTest` (13) + `RemoveFulfilmentUseCaseTest` (2) on hand-written fakes —
       every rule and rejection asserted without a container, in about a second
 
 - [x] `fulfilment-openapi.yaml` publishing the bonus API contract — **documentation only**: the
@@ -106,7 +114,12 @@ endpoint tests, written first and unchanged since, are what proves the restructu
 
 ## Verification
 
-- [x] `mvn clean test` green — 43 tests (6 before Task 3, 33 after it, 43 with the bonus)
+- [x] `mvn clean test` green — 68 tests (6 before Task 3, 33 after it, 55 with the bonus, 68 once
+      the uncovered branches were closed); `mvn verify` adds the 2 `*IT` tests
+- [x] Coverage of the business logic: `warehouses/domain` and `fulfilment/domain` at 100% of lines
+      and branches. What is left uncovered in the adapters is unreachable through the use cases
+      (`WarehouseRepository.remove`, the `managedEntityOf` fallback, the not-found guard of
+      `ProductFulfilmentRepository.remove`) — defensive code, not behaviour
 - [x] `POST /warehouse` returns 201: the generator yields 200 and `@ResponseStatus(201)` on the impl
       is ignored (the JAX-RS method is declared on the generated interface), so the status is set by
       `WarehouseCreatedStatusFilter`

@@ -174,27 +174,33 @@ operation wrote *nothing*. The whole rule set runs in under 200 ms.
 
 | Class | Tests | Covers |
 |---|---|---|
-| `CreateWarehouseUseCaseTest` | 8 | happy path, duplicate code, unknown location, location full, location capacity exceeded, stock > capacity, missing values, archived units not counted |
-| `ReplaceWarehouseUseCaseTest` | 6 | happy path, unknown code (404), capacity below previous stock, stock mismatch, unknown location, location capacity exceeded |
+| `CreateWarehouseUseCaseTest` | 13 | happy path, duplicate code, unknown location, location full, location capacity exceeded, stock > capacity, missing values, blank code, missing location, missing stock, negative capacity, negative stock, archived units not counted |
+| `ReplaceWarehouseUseCaseTest` | 8 | happy path, unknown code (404), capacity below previous stock, stock mismatch, unknown location, location capacity exceeded, neighbours counted while the replaced unit is not (accepted and rejected) |
 | `ArchiveWarehouseUseCaseTest` | 3 | happy path, unknown code, already archived |
-| `WarehouseEndpointTest` | 10 | listing, 201 + id, lookup by id, 404s, three 400s, archive → gone from listing / lookup / second archive, replacement keeping the code, replacement rejections |
+| `WarehouseEndpointTest` | 10 | 201 + id, lookup by id, 404s including a non-numeric id, three 400s, archive → gone from listing / lookup / second archive, replacement keeping the code, replacement rejections |
+| `WarehouseEndpointIT` | 2 | listing the seeded warehouses, archiving one of them — black-box on the packaged application |
 
 The six gaps listed above are the six rejection tests in the first two rows; the archived-listing
-behaviour is pinned by `archivedWarehousesDisappearFromTheListingAndFromTheLookups`, which runs in
-`mvn test` — unlike the `IT` (see below).
+behaviour is pinned by `archivedWarehousesDisappearFromTheListingAndFromTheLookups`.
+
+`warehouses/domain` is covered at 100% of lines and branches, `WarehouseValidations` included — the
+rules are the part of this codebase where an untested branch is a silently wrong answer, so that is
+where the number is worth having. What remains uncovered in `WarehouseRepository` is unreachable
+through the use cases: `remove` has no caller (archiving updates the row), and the
+`managedEntityOf` fallback by business unit code only fires for a domain object without an id, which
+the lookups never produce. Covering them would mean asserting on defensive code.
 
 **Why a `@QuarkusTest` when `WarehouseEndpointIT` already exists.** The two are not the same kind of
-test, and only one of them runs. `@QuarkusIntegrationTest` is black-box against the *packaged*
-artifact: it needs a `package` phase, cannot inject beans, and here failsafe is bound only in the
-`native` profile, so neither `mvn test` nor plain `mvn verify` executes it — a native build is the
-only way. It gave no feedback at all while this task was written, which is precisely how the
-archived-listing bug survived. `@QuarkusTest` runs the application in-JVM as part of the normal test
-loop, in about a second once the shared container is up, and it is what caught the missing 201.
-Coverage differs too: the IT has two tests, none of them touching creation, the validation 400s, the
-404s or replacement — and it cannot grow safely, since its two tests share one application instance
-while `testSimpleListWarehouses` asserts the presence of the very warehouse the other one archives.
-So the IT was restored exactly as the scaffolding intended, and the executable endpoint coverage
-lives in `WarehouseEndpointTest`.
+test. `@QuarkusIntegrationTest` is black-box against the *packaged* artifact: it needs a `package`
+phase and cannot inject beans, so it costs a full package + boot and only proves the assembled
+application answers. `@QuarkusTest` runs the application in-JVM as part of the normal test loop, in
+about a second once the shared container is up, and it is what caught the missing 201. Coverage is
+split accordingly: the IT owns the seeded listing and the archive-a-seeded-unit path, and
+`WarehouseEndpointTest` owns creation, the validation 400s, the 404s and replacement — the original
+`listsTheWarehousesSeededInTheDatabase` was dropped once failsafe started running, since the IT
+already asserts exactly that. The IT also cannot grow safely: its two tests share one application
+instance while `testSimpleListWarehouses` asserts the presence of the very warehouse the other one
+archives.
 
 **Endpoint tests own their data.** `@QuarkusTest` shares one database for the whole run, so each test
 uses its own business unit codes (`MWH.401`…`MWH.407`) and, where capacity matters, its own location
@@ -206,13 +212,13 @@ survive because the rules apply to new operations only — no validation runs at
 
 ## 7. Limits and what was left alone
 
-**The `*IT` tests still do not run.** `WarehouseEndpointIT` is uncommented and correct, but failsafe
-is bound only in the `native` profile, so `mvn verify` skips it. Binding it in the default build was
-not done here for two reasons: it changes the build for every reviewer, and the two IT tests share a
-single application instance while JUnit does not guarantee their order —
-`testSimpleListWarehouses` asserts `MWH.001` is listed and would fail if the archiving test ran
-first. The behaviour it checks is covered by `WarehouseEndpointTest`, which does run. Fixing the
-ordering means touching a provided test, so it is flagged in `TODO.md` rather than done unasked.
+**The `*IT` ordering is still implicit.** Failsafe now sits in the main build, so `mvn verify`
+packages the application and runs `WarehouseEndpointIT` in JVM mode (the `native` profile only swaps
+in the native runner through `native.image.path`). The two IT tests share a single application
+instance, and JUnit does not *guarantee* their order: `testSimpleListWarehouses` asserts `MWH.001`
+is listed and would fail if the archiving test ran first. JUnit's default deterministic order
+happens to run it first, and pinning it with `@TestMethodOrder` means editing a provided test, so it
+stays flagged in `TODO.md` rather than done unasked.
 
 **No concurrency control.** The per-location limits are read-then-write: two simultaneous creations
 at the same location can both pass the check and jointly exceed `maxCapacity`. `@Transactional` alone

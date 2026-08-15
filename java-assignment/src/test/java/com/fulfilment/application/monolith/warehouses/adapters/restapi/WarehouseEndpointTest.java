@@ -18,21 +18,7 @@ class WarehouseEndpointTest {
   private static final String SEEDED_CODE = "MWH.001";
   private static final String ERROR_CODE_FIELD = "code";
 
-  @Test
-  void listsTheWarehousesSeededInTheDatabase() {
-    // Given the three warehouses of import.sql
-    // When / Then
-    given()
-        .when()
-        .get(PATH)
-        .then()
-        .statusCode(200)
-        .body(
-            containsString(SEEDED_CODE),
-            containsString("MWH.012"),
-            containsString("MWH.023"),
-            containsString("\"id\""));
-  }
+  // Listing the seeded warehouses is covered by WarehouseEndpointIT.
 
   @Test
   void createsAWarehouseAndExposesItById() {
@@ -111,6 +97,18 @@ class WarehouseEndpointTest {
     given()
         .when()
         .get(PATH + "/999999")
+        .then()
+        .statusCode(404)
+        .body(ERROR_CODE_FIELD, equalTo(404));
+  }
+
+  @Test
+  void returnsNotFoundWhenTheWarehouseIdIsNotANumber() {
+    // Given an identifier that cannot be a row id
+    // When / Then
+    given()
+        .when()
+        .get(PATH + "/not-a-number")
         .then()
         .statusCode(404)
         .body(ERROR_CODE_FIELD, equalTo(404));

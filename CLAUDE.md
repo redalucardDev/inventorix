@@ -33,13 +33,16 @@ All Maven commands run from `java-assignment/`:
 ./mvnw quarkus:dev          # dev mode with live reload, http://localhost:8080
 ./mvnw package              # build (also generates the OpenAPI server code)
 ./mvnw test                 # run unit/@QuarkusTest tests
+./mvnw verify               # the above + the *IT tests against the packaged app
 ./mvnw test -Dtest=LocationGatewayTest              # single test class
 ./mvnw test -Dtest=LocationGatewayTest#methodName   # single test method
 ```
 
 Requires JDK 21 (`maven.compiler.release=21`; the README's "JDK 17+" predates this). Dev and test modes start PostgreSQL automatically via Quarkus Dev Services (needs Docker). Prod mode expects PostgreSQL at `localhost:15432` (see README for the `docker run` command).
 
-`*IT` classes (`@QuarkusIntegrationTest`) run via failsafe, which is only bound in the `native` profile — plain `./mvnw verify` does not execute them.
+`*IT` classes (`@QuarkusIntegrationTest`) run via failsafe, bound in the main build — `./mvnw verify` packages the app and runs them black-box (JVM mode; the `native` profile only swaps in the native runner). Behavior an `*IT` already covers must not be duplicated by a `@QuarkusTest`.
+
+**Coverage**: `target/jacoco-report/index.html`, written at the end of the surefire run. Two agents feed one data file (`target/jacoco-quarkus.exec`): the `quarkus-jacoco` extension covers `@QuarkusTest` classes, and `jacoco-maven-plugin` covers everything outside the Quarkus classloader (`exclClassLoaders=*QuarkusClassLoader` keeps them from fighting). Report settings are `%test.quarkus.jacoco.*` in `application.properties` — never plain `quarkus.jacoco.*`, which would warn on unknown keys in prod. The `*IT` process is not instrumented, so it contributes nothing to the report.
 
 ## Architecture
 

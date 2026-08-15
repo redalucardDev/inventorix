@@ -177,6 +177,28 @@ class CreateFulfilmentUseCaseTest {
     assertThat(fulfilments.stored()).isEmpty();
   }
 
+  @Test
+  void rejectsAnAssociationWithoutAStore() {
+    // Given a request naming a product and a warehouse but no store
+    var fulfilments = new InMemoryFulfilmentStore();
+
+    // When / Then
+    assertThatExceptionOfType(FulfilmentValidationException.class)
+        .isThrownBy(() -> useCaseOn(fulfilments).create(Fulfilment.of(PRODUCT, null, WAREHOUSE_A)));
+    assertThat(fulfilments.stored()).isEmpty();
+  }
+
+  @Test
+  void rejectsAnAssociationWhoseWarehouseCodeIsBlank() {
+    // Given a warehouse code made of spaces
+    var fulfilments = new InMemoryFulfilmentStore();
+
+    // When / Then
+    assertThatExceptionOfType(FulfilmentValidationException.class)
+        .isThrownBy(() -> useCaseOn(fulfilments).create(Fulfilment.of(PRODUCT, STORE, "   ")));
+    assertThat(fulfilments.stored()).isEmpty();
+  }
+
   private static CreateFulfilmentUseCase useCaseOn(InMemoryFulfilmentStore fulfilments) {
     return new CreateFulfilmentUseCase(
         fulfilments,

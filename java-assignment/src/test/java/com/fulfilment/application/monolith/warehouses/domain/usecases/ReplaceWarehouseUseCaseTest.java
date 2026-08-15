@@ -17,6 +17,11 @@ class ReplaceWarehouseUseCaseTest {
   private static final String CODE = "MWH.201";
   private static final int PREVIOUS_CAPACITY = 30;
   private static final int PREVIOUS_STOCK = 10;
+  private static final String SHARED_LOCATION = "ZWOLLE-002";
+  private static final int SHARED_MAX_WAREHOUSES = 2;
+  private static final int SHARED_MAX_CAPACITY = 70;
+  private static final String NEIGHBOUR_CODE = "MWH.202";
+  private static final int NEIGHBOUR_CAPACITY = 30;
 
   private final StubLocationResolver locationResolver =
       new StubLocationResolver()
@@ -113,6 +118,42 @@ class ReplaceWarehouseUseCaseTest {
     assertThat(warehouseStore.createdWarehouses()).isEmpty();
   }
 
+  @Test
+  void freesTheCapacityOfTheReplacedWarehouseButNotThatOfItsNeighbours() {
+    // Given a neighbour holding 30 of the 70 units of the location, next to the unit to replace
+    Warehouse previous = warehouse(CODE, SHARED_LOCATION, PREVIOUS_CAPACITY, PREVIOUS_STOCK);
+    Warehouse neighbour = warehouse(NEIGHBOUR_CODE, SHARED_LOCATION, NEIGHBOUR_CAPACITY, 5);
+    InMemoryWarehouseStore warehouseStore = new InMemoryWarehouseStore(previous, neighbour);
+    Warehouse replacement =
+        warehouse(
+            CODE, SHARED_LOCATION, SHARED_MAX_CAPACITY - NEIGHBOUR_CAPACITY, PREVIOUS_STOCK);
+
+    // When it claims everything the neighbour leaves
+    replaceUseCaseAtTheSharedLocation(warehouseStore).replace(replacement);
+
+    // Then the capacity of the replaced unit did not count against it
+    assertThat(previous.archivedAt).isNotNull();
+    assertThat(warehouseStore.createdWarehouses()).containsExactly(replacement);
+  }
+
+  @Test
+  void rejectsTheReplacementWhenTheNeighboursLeaveTooLittleCapacity() {
+    // Given the same neighbour, and a replacement one unit above what it leaves
+    Warehouse previous = warehouse(CODE, SHARED_LOCATION, PREVIOUS_CAPACITY, PREVIOUS_STOCK);
+    Warehouse neighbour = warehouse(NEIGHBOUR_CODE, SHARED_LOCATION, NEIGHBOUR_CAPACITY, 5);
+    InMemoryWarehouseStore warehouseStore = new InMemoryWarehouseStore(previous, neighbour);
+    Warehouse tooLarge =
+        warehouse(
+            CODE, SHARED_LOCATION, SHARED_MAX_CAPACITY - NEIGHBOUR_CAPACITY + 1, PREVIOUS_STOCK);
+
+    // When / Then
+    assertThatExceptionOfType(WarehouseValidationException.class)
+        .isThrownBy(() -> replaceUseCaseAtTheSharedLocation(warehouseStore).replace(tooLarge))
+        .withMessageContaining(SHARED_LOCATION);
+    assertThat(previous.archivedAt).isNull();
+    assertThat(warehouseStore.createdWarehouses()).isEmpty();
+  }
+
   private static Warehouse previousWarehouse() {
     return warehouse(CODE, SINGLE_SLOT_LOCATION, PREVIOUS_CAPACITY, PREVIOUS_STOCK);
   }
@@ -120,5 +161,16 @@ class ReplaceWarehouseUseCaseTest {
   private ReplaceWarehouseUseCase replaceUseCaseOn(InMemoryWarehouseStore warehouseStore) {
     return new ReplaceWarehouseUseCase(
         warehouseStore, new WarehouseValidations(warehouseStore, locationResolver));
+  }
+
+  /** A location with room for a second warehouse, so a replacement has neighbours to count. */
+  private static ReplaceWarehouseUseCase replaceUseCaseAtTheSharedLocation(
+      InMemoryWarehouseStore warehouseStore) {
+    var resolver =
+        new StubLocationResolver()
+            .knowing(new Location(SHARED_LOCATION, SHARED_MAX_WAREHOUSES, SHARED_MAX_CAPACITY));
+
+    return new ReplaceWarehouseUseCase(
+        warehouseStore, new WarehouseValidations(warehouseStore, resolver));
   }
 }

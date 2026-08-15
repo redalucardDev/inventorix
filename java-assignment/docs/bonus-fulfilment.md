@@ -123,16 +123,18 @@ oversight.
 
 Two levels, the same split as the warehouse package: rules without a container, HTTP with one.
 
-`CreateFulfilmentUseCaseTest` (11) and `RemoveFulfilmentUseCaseTest` (2) — plain JUnit over
+`CreateFulfilmentUseCaseTest` (13) and `RemoveFulfilmentUseCaseTest` (2) — plain JUnit over
 hand-written fakes (`InMemoryFulfilmentStore`, `StubProductCatalog`, `StubStoreDirectory`,
 `StubActiveWarehouseLookup`), covering each rule and each rejection separately: duplicate, the three
 limits, **both** distinct-counting cases (a warehouse the store already relies on, a product the
-warehouse already stores), unknown product / store / archived warehouse, incomplete association,
-removal and unknown id. The whole set runs in about a second.
+warehouse already stores), unknown product / store / archived warehouse, an association missing its
+product, its store or its warehouse code, removal and unknown id. The whole set runs in about a
+second and leaves `fulfilment/domain` at 100% of lines and branches.
 
-`FulfilmentEndpointTest` — 10 `@QuarkusTest` cases: the happy path with both `GET` filters, the
-duplicate, the three limits, the distinct-counting case, unknown product / store / warehouse, the
-archived warehouse, deletion (`204` then `404`), and the cascade on product deletion. It was written
+`FulfilmentEndpointTest` — 13 `@QuarkusTest` cases: the happy path with both `GET` filters, the
+unfiltered listing and the two filters combined, the duplicate, the three limits, the
+distinct-counting case, unknown product / store / warehouse, an empty payload, the archived
+warehouse, deletion (`204` then `404`), and the cascade on product deletion. It was written
 before the implementation and never changed since — which is what makes it the safety net proving
 the restructuring of §2 altered nothing observable.
 
