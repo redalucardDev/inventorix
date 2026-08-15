@@ -75,6 +75,8 @@ Base package: `com.fulfilment.application.monolith`. The codebase deliberately m
 
 - **Leverage Java 21 features** where they make code clearer: records for immutable data carriers (events, results, fixtures — *not* JPA entities or generated beans), switch expressions and pattern matching (including record patterns), sealed interfaces for closed domain alternatives, `Stream.toList()`. Do not use a feature merely because it exists.
 - **Checkstyle**: write code as if checkstyle were enforced — the rules are mirrored in `.claude/STANDARDS.md`. Checkstyle is *not* wired into `java-assignment/pom.xml`, so the arbiter is `.claude/STANDARDS.md` plus the `java-standards` skill. Key rules: no star imports, no magic numbers or duplicated string literals, `.equals()` from the non-null side, max 3 returns per method (2 for void), least visibility (never `public` unless required by the API or a framework), newline at end of file.
+- **`var`** only when the type is visible on the same line (`var w = new Warehouse();`, `for (var e : map.entrySet())`) — explicit type everywhere else, and never where the two `Warehouse` classes could be confused.
+- **try-with-resources** for every I/O resource (streams, readers/writers, JDBC, sockets) — never a hand-written `finally` close.
 - Rules apply to code you write or modify — never restyle untouched assignment scaffolding.
 
 ## Project decisions & conventions

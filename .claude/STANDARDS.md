@@ -54,6 +54,25 @@
 - Utility classes (static methods only, e.g. `WarehouseValidations`) get a `private` constructor.
 - No finalizers. Blank line at end of file.
 
+### Local variables (`var`)
+
+- Use `var` **only when the type is already visible on the same line** — typically
+  `var warehouse = new Warehouse();`, and `for (var entry : map.entrySet())`.
+- Write the type explicitly everywhere else: method returns (`var result = service.doThing()`
+  hides the type), numeric literals (`var i = 0` is an `int`, never a `long`),
+  and `new ArrayList<>()` without a type argument (infers `Object`).
+- Never use `var` where two visible types share a name (the generated `com.warehouse.api.beans.Warehouse`
+  vs. the domain `Warehouse`) — ambiguity outweighs brevity.
+- If the variable name alone doesn't tell the reader what it holds, spell the type out.
+
+### Resources (I/O)
+
+- **Always use try-with-resources** for anything holding an OS or network resource:
+  streams, readers/writers, `Connection`/`Statement`/`ResultSet`, sockets, HTTP clients'
+  response bodies, `Files.lines(...)`.
+- Never close a resource in a `finally` block by hand, and never rely on a finalizer or
+  garbage collection to release one.
+
 ### Comments (self-explaining code first)
 
 - **Code must explain itself**: prefer clear names, small methods and guard clauses over
@@ -101,7 +120,8 @@
 5. Blank line at end of file?
 6. Is every class/method at its narrowest workable visibility? Any `public` that isn't required by the API or a framework contract?
 7. Is the code self-explaining? Any comment that just restates the code, or that should be a rename/extract instead? Comments only where genuinely ambiguous.
-8. New entity/column? → `import.sql` is frozen (no changes allowed), so avoid schema changes that would need new seed data (startup fails otherwise).
-9. Do new tests own their business unit codes and use locations with headroom (`ZWOLLE-002`, `EINDHOVEN-001`, `HELMOND-001`, `VETSBY-001`, `AMSTERDAM-001`)?
-10. Did a failing test exist before the production code?
-11. Could a Java 21 feature (record, switch expression, pattern matching) make this clearer?
+8. Any `var` whose type isn't visible on the same line? Any I/O resource opened outside try-with-resources?
+9. New entity/column? → `import.sql` is frozen (no changes allowed), so avoid schema changes that would need new seed data (startup fails otherwise).
+10. Do new tests own their business unit codes and use locations with headroom (`ZWOLLE-002`, `EINDHOVEN-001`, `HELMOND-001`, `VETSBY-001`, `AMSTERDAM-001`)?
+11. Did a failing test exist before the production code?
+12. Could a Java 21 feature (record, switch expression, pattern matching) make this clearer?

@@ -24,8 +24,10 @@ modify — never restyle untouched assignment scaffolding.
 7. Blank line at end of file; no `System.out` — use the JBoss `Logger` like `StoreResource`.
 8. **Least visibility**: narrowest modifier that works (`private` → package-private → `protected` → `public`); never `public` unless required by the API or a framework (JAX-RS, CDI, JPA, generated interfaces, `@Provider`).
 9. Constructor injection; 
-10. `Optional<T>` for lookup returns (never null, never Optional fields/params).
-11. Comments **not systematic** — code must be self-explaining; comment only when genuinely ambiguous (non-obvious "why"). Never restate what the code says; prefer rename/extract. (`// Given / When / Then` in tests stays.)
+10. Avoid returning null, use `Optional<T>` for lookup returns (never null, never Optional fields/params).
+11. `var` **only when the type is visible on the same line** (`var w = new Warehouse();`, `for (var e : map.entrySet())`); explicit type for method returns, numeric literals and anything ambiguous (the two `Warehouse` classes).
+12. **try-with-resources for every I/O resource** (streams, readers/writers, JDBC, sockets, `Files.lines`) — never a hand-written `finally` close.
+13. Comments **not systematic** — code must be self-explaining; comment only when genuinely ambiguous (non-obvious "why"). Never restate what the code says; prefer rename/extract. (`// Given / When / Then` in tests stays.)
 
 ## Java 21 — leverage where it clarifies
 
