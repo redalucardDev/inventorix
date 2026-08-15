@@ -4,21 +4,28 @@ import com.fulfilment.application.monolith.warehouses.domain.models.Warehouse;
 import com.fulfilment.application.monolith.warehouses.domain.ports.CreateWarehouseOperation;
 import com.fulfilment.application.monolith.warehouses.domain.ports.WarehouseStore;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.transaction.Transactional;
+import java.time.LocalDateTime;
 
 @ApplicationScoped
 public class CreateWarehouseUseCase implements CreateWarehouseOperation {
 
   private final WarehouseStore warehouseStore;
+  private final WarehouseValidations validations;
 
-  public CreateWarehouseUseCase(WarehouseStore warehouseStore) {
+  CreateWarehouseUseCase(WarehouseStore warehouseStore, WarehouseValidations validations) {
     this.warehouseStore = warehouseStore;
+    this.validations = validations;
   }
 
   @Override
+  @Transactional
   public void create(Warehouse warehouse) {
-    // TODO implement this method
+    validations.validateNewWarehouse(warehouse);
 
-    // if all went well, create the warehouse
+    warehouse.createdAt = LocalDateTime.now();
+    warehouse.archivedAt = null;
+
     warehouseStore.create(warehouse);
   }
 }

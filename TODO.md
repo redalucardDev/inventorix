@@ -49,23 +49,37 @@ fails at commit, and before this change the legacy system was still notified (id
 Left untouched on purpose: `patch` guards on `entity.name != null` / `entity.quantityProductsInStock
 != 0` rather than on the payload, which looks wrong but is outside this task's scope.
 
-## Task 3 — Warehouse (must have)
+## Task 3 — Warehouse (must have) — DONE
 
-- [ ] Domain exceptions `WarehouseValidationException` (400) / `WarehouseNotFoundException` (404)
-- [ ] `WarehouseExceptionMappers` (`@Provider`), keeping the `exceptionType`/`code`/`error` JSON shape
-- [ ] `Warehouse.id`; `WarehouseStore.findById` / `findByBusinessUnitCode` returning `Optional`;
+- [x] Domain exceptions `WarehouseValidationException` (400) / `WarehouseNotFoundException` (404),
+      the latter with `forBusinessUnitCode` / `forId` factories so the message lives in one place
+- [x] `WarehouseExceptionMappers` (`@Provider`), keeping the `exceptionType`/`code`/`error` JSON shape
+- [x] `Warehouse.id`; `WarehouseStore.findById` / `findByBusinessUnitCode` returning `Optional`;
       `DbWarehouse.from(...)`
-- [ ] `WarehouseRepository`: `create` / `update` / `remove` / lookups, filtering `archivedAt is null`
-- [ ] `CreateWarehouseUseCase` + shared `WarehouseValidations`
-      (unique business unit code, location resolves, max warehouses per location,
+- [x] `WarehouseRepository`: `create` / `update` / `remove` / lookups, filtering `archivedAt is null`
+- [x] `CreateWarehouseUseCase` + shared `WarehouseValidations`
+      (mandatory values, unique business unit code, location resolves, max warehouses per location,
       capacity sum ≤ location max, stock ≤ capacity)
-- [ ] `ReplaceWarehouseUseCase`: 404 on unknown code, stock must match, new capacity covers the old
+- [x] `ReplaceWarehouseUseCase`: 404 on unknown code, stock must match, new capacity covers the old
       stock, per-location limits computed excluding the unit being replaced, atomic archive+create
-- [ ] `ArchiveWarehouseUseCase`: set `archivedAt`, reject an already-archived unit
-- [ ] `WarehouseResourceImpl`: constructor-injected operation ports, all 4 endpoints, `id` in responses
-- [ ] Use-case unit tests with hand-written fakes (`InMemoryWarehouseStore`, `StubLocationResolver`)
-- [ ] `WarehouseEndpointTest` (`@QuarkusTest` + RestAssured)
-- [ ] `WarehouseEndpointIT`: uncomment and restore the archiving test
+- [x] `ArchiveWarehouseUseCase`: set `archivedAt`; an already-archived unit is no longer active, so
+      a second archive returns 404
+- [x] `WarehouseResourceImpl`: constructor-injected operation ports, all 4 endpoints, `id` in responses
+- [x] `WarehouseCreatedStatusFilter`: restores the 201 the generated interface cannot declare
+- [x] Use-case unit tests with hand-written fakes (`InMemoryWarehouseStore`, `StubLocationResolver`):
+      8 create + 6 replace + 3 archive, every validation branch covered
+- [x] `WarehouseEndpointTest` (`@QuarkusTest` + RestAssured), 10 tests including the archived unit
+      disappearing from the listing and from the lookups
+- [x] `WarehouseEndpointIT`: uncommented and restored
+
+Design decisions written up in `java-assignment/docs/task-3-warehouse.md`.
+
+Left open (deliberate, see the doc's *Limits* section):
+
+- failsafe is still bound to the `native` profile only, so the two `*IT` tests do not run under
+  `mvn verify`; the same behaviour is covered by `WarehouseEndpointTest`, which does run
+- the two `WarehouseEndpointIT` tests share one application instance and JUnit does not guarantee
+  their order — `testSimpleListWarehouses` fails if it runs after the archiving test
 
 ## Bonus — fulfilment associations (nice to have)
 
@@ -79,10 +93,11 @@ Left untouched on purpose: `patch` guards on `entity.name != null` / `entity.qua
 
 ## Verification
 
-- [ ] `mvn clean test` green
-- [ ] Confirm the generated `WarehouseResource` returns 201 on `POST /warehouse`
-      (the spec says 201; if the generator yields 200, add `@ResponseStatus(201)` on the impl)
-- [ ] `mvn package` — generated sources compile
+- [x] `mvn clean test` green — 33 tests (6 before Task 3)
+- [x] `POST /warehouse` returns 201: the generator yields 200 and `@ResponseStatus(201)` on the impl
+      is ignored (the JAX-RS method is declared on the generated interface), so the status is set by
+      `WarehouseCreatedStatusFilter`
+- [x] `mvn package` — generated sources compile
 
 ## Yours (Reda) — not delegated
 

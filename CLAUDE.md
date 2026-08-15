@@ -49,7 +49,8 @@ Base package: `com.fulfilment.application.monolith`. The codebase deliberately m
   - `domain/ports` — interfaces: `WarehouseStore` (persistence), `LocationResolver`, and one interface per operation (`CreateWarehouseOperation`, `ReplaceWarehouseOperation`, `ArchiveWarehouseOperation`)
   - `domain/usecases` — `@ApplicationScoped` implementations of the operation ports; business validations belong here
   - `adapters/database` — `DbWarehouse` JPA entity + `WarehouseRepository` (Panache repository implementing `WarehouseStore`)
-  - `adapters/restapi` — `WarehouseResourceImpl`, implementing a **generated** interface
+  - `domain/exceptions` — `WarehouseValidationException` (400) / `WarehouseNotFoundException` (404, built through `forBusinessUnitCode` / `forId`)
+  - `adapters/restapi` — `WarehouseResourceImpl`, implementing a **generated** interface, plus `WarehouseExceptionMappers` and `WarehouseCreatedStatusFilter` (the generated interface cannot declare the 201 of `POST /warehouse`, and `@ResponseStatus` on the impl is ignored)
 - **`products/` and `stores/`** — plain JAX-RS resources coded by hand. `Store` uses Panache active-record (static methods on the entity); `Product` uses the repository pattern. `StoreResource` calls `LegacyStoreManagerGateway` — the assignment requires these calls to happen only after the DB transaction commits.
 - **`location/`** — `LocationGateway` resolves locations from a hard-coded static list; locations are *not* in the database.
 
@@ -85,7 +86,7 @@ Agreed during implementation planning — follow these unless explicitly changed
 
 - **Errors (warehouse flows)**: use cases throw `WarehouseValidationException` (→ 400) or `WarehouseNotFoundException` (→ 404) from `warehouses/domain/exceptions`; `@Provider` mappers live in `warehouses/adapters/restapi` and keep the JSON shape of the global `StoreResource.ErrorMapper` (`exceptionType`/`code`/`error`). No JAX-RS types inside the domain layer.
 - **Transactions**: `@Transactional` sits on use-case methods (replace = archive + create atomically). REST adapter methods stay annotation-free.
-- **Archived warehouses**: `WarehouseStore.getAll` and `findByBusinessUnitCode` return only active rows (`archivedAt is null`).
+- **Archived warehouses**: `WarehouseStore.getAll`, `findByBusinessUnitCode` and `findById` return only active rows (`archivedAt is null`) — an archived unit is absent from the listing, 404 on lookup, and archiving it twice is a 404. Shared rules live in `domain/usecases/WarehouseValidations`; see `docs/task-3-warehouse.md`.
 - **Seed data**: `import.sql` is **frozen — never modify it**. It intentionally violates the location rules (MWH.001 capacity 100 > ZWOLLE-001 max 40; TILBURG-001 already full); these violations are deliberate — never "fix" the seeds. Validations apply to new operations only. Tests needing headroom use `ZWOLLE-002`, `EINDHOVEN-001`, `HELMOND-001`, `VETSBY-001`, or `AMSTERDAM-001`.
 - **Store legacy sync**: CDI events (`StoreCreatedEvent`/`StoreUpdatedEvent`) observed with `@Observes(during = TransactionPhase.AFTER_SUCCESS)` — never call `LegacyStoreManagerGateway` directly from a `@Transactional` method.
 - **Tests**: JUnit 5 + AssertJ; hand-written fakes for ports (no Mockito, no Lombok anywhere); RestAssured for endpoint tests; behavior-describing names (`rejectsCreationWhenBusinessUnitCodeAlreadyExists`) with `// Given / When / Then` comments. `@QuarkusTest` shares one DB per run (drop-and-create per start, not per test) — each test owns its business unit codes.
