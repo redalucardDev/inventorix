@@ -81,19 +81,32 @@ Left open (deliberate, see the doc's *Limits* section):
 - the two `WarehouseEndpointIT` tests share one application instance and JUnit does not guarantee
   their order — `testSimpleListWarehouses` fails if it runs after the archiving test
 
-## Bonus — fulfilment associations (nice to have)
+## Bonus — fulfilment associations (nice to have) — DONE
 
-- [ ] `fulfilment/` package: `ProductFulfilment` entity + repository
-- [ ] `FulfilmentService`: ≤2 warehouses per product+store, ≤3 warehouses per store,
-      ≤5 product types per warehouse
-- [ ] `FulfilmentResource`: POST (201/400), GET with `productId`/`storeId` filters, DELETE (204/404)
-- [ ] `FulfilmentEndpointTest`: all three limits + unknown references + delete
+- [x] `fulfilment/` package, hexagonal like `warehouses`: domain (model, 6 ports, 3 use cases,
+      2 exceptions) + adapters (JPA entity, repository, 3 lookup adapters, REST resource, mappers)
+- [x] `CreateFulfilmentUseCase`: ≤2 warehouses per product+store, ≤3 warehouses per store,
+      ≤5 product types per warehouse — all counting *distinct* participants
+- [x] `FulfilmentResource`: POST (201/400), GET with `productId`/`storeId` filters, DELETE (204/404)
+- [x] `FulfilmentEndpointTest`: 10 tests — three limits, duplicate, distinct-counting case,
+      unknown references, archived warehouse refused, delete, cascade on product deletion
+- [x] `CreateFulfilmentUseCaseTest` (11) + `RemoveFulfilmentUseCaseTest` (2) on hand-written fakes —
+      every rule and rejection asserted without a container, in about a second
 
-`import.sql` is frozen — a new entity must be nullable and need no seed rows.
+- [x] `fulfilment-openapi.yaml` publishing the bonus API contract — **documentation only**: the
+      generator takes a single spec per build, so `FulfilmentResource` stays a hand-written adapter
+      (evidence and dead ends in `docs/bonus-fulfilment.md` §1 — don't retry the generator route)
+
+`import.sql` untouched: the new table starts empty and needs no seed row.
+Design decisions in `java-assignment/docs/bonus-fulfilment.md`.
+
+The first draft used the plain style of `products`/`stores`; it was restructured because a Panache
+repository as a direct dependency left the three counting rules reachable only through HTTP. The
+endpoint tests, written first and unchanged since, are what proves the restructuring changed nothing.
 
 ## Verification
 
-- [x] `mvn clean test` green — 33 tests (6 before Task 3)
+- [x] `mvn clean test` green — 43 tests (6 before Task 3, 33 after it, 43 with the bonus)
 - [x] `POST /warehouse` returns 201: the generator yields 200 and `@ResponseStatus(201)` on the impl
       is ignored (the JAX-RS method is declared on the generated interface), so the status is set by
       `WarehouseCreatedStatusFilter`
