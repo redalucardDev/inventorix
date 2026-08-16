@@ -2,12 +2,8 @@
 
 Plan re-established on 2026-08-12 after a full audit of the working tree.
 
-> **State of the repo:** `git diff HEAD --ignore-all-space` on `java-assignment/src/` is **empty** —
-> the only difference versus the commit is CRLF line endings. All 9 `UnsupportedOperationException`
-> stubs are still in place and no new source file exists on disk.
-> Compiled `.class` files from a lost session survive in `java-assignment/target/`
-> (`fulfilment/`, `StoreCreatedEvent`, `WarehouseValidations`, …) — bytecode only, sources gone.
-> Run `mvn clean` first: until then surefire picks up those stale test classes.
+> **State of the repo:** every task below is implemented and committed, bonus included. The three
+> questions and the five case-study scenarios are answered, so nothing is left open.
 
 ## Step 0 — Toolchain (blocks everything)
 
@@ -125,7 +121,10 @@ endpoint tests, written first and unchanged since, are what proves the restructu
       `WarehouseCreatedStatusFilter`
 - [x] `mvn package` — generated sources compile
 
-## Yours (Reda) — not delegated
+## Yours (Reda) — not delegated — DONE
 
-- [ ] Answer the 3 questions in `java-assignment/QUESTIONS.md`
-- [ ] Talking points for `case-study/CASE_STUDY.md` (discussion only, no code)
+- [x] Answer the 3 questions in `java-assignment/QUESTIONS.md`: converging `stores` and `products`
+      on the hexagonal layout, contract-first versus code-first for the API surface, and the test
+      priority order with coverage enforced in the build
+- [x] Talking points for `case-study/CASE_STUDY.md`: the five cost-management scenarios
+      (discussion only, no code)
